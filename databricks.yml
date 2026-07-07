@@ -1,0 +1,62 @@
+bundle:
+  name: databricks-etl-medallion
+
+variables:
+  cluster_id:
+    description: "ID del cluster de producción (único cluster activo)"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${var.DATABRICKS_HOST}
+    run_as:
+      user_name: ${var.DATABRICKS_USER}
+
+  prod:
+    mode: production
+    workspace:
+      host: ${var.DATABRICKS_HOST}
+    run_as:
+      user_name: ${var.DATABRICKS_USER}
+
+resources:
+  jobs:
+    etl_pipeline:
+      name: "ETL Medallion Pipeline"
+      description: "Pipeline completo Bronze → Silver → Gold"
+
+      tasks:
+        - task_key: bronze_ingestion
+          description: "Ingesta de datos crudos desde ADLS Gen2"
+          notebook_task:
+            notebook_path: ./proceso/01_bronze_ingestion.py
+            source: WORKSPACE
+          existing_cluster_id: ${var.cluster_id}
+
+        - task_key: silver_transformation
+          description: "Limpieza y transformación de datos"
+          depends_on:
+            - task_key: bronze_ingestion
+          notebook_task:
+            notebook_path: ./proceso/02_silver_transformation.py
+            source: WORKSPACE
+          existing_cluster_id: ${var.cluster_id}
+
+        - task_key: gold_analytics
+          description: "Generación de métricas y tablas analíticas"
+          depends_on:
+            - task_key: silver_transformation
+          notebook_task:
+            notebook_path: ./proceso/03_gold_analytics.py
+            source: WORKSPACE
+          existing_cluster_id: ${var.cluster_id}
+
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: "America/Guatemala"
+
+      email_notifications:
+        on_failure:
+          - ${var.DATABRICKS_USER}

@@ -1,0 +1,136 @@
+# ═══════════════════════════════════════════════════════
+# CAPA GOLD — Agregaciones y métricas de negocio
+# Lee desde Silver y genera tablas listas para consumo
+# en dashboards y reportes ejecutivos
+# ═══════════════════════════════════════════════════════
+
+import sys
+sys.path.insert(0, "/Workspace/Shared/proyecto")
+
+from pyspark.sql import functions as F
+
+from config.settings import (
+    CATALOG, SCHEMA_GOLD,
+    TBL_SILVER_MOVIES, TBL_SILVER_AUTOS,
+    TBL_GOLD_GENRE, TBL_GOLD_AUTOS_BRAND, TBL_GOLD_COMBINED
+)
+from src.utils.helpers import (
+    write_delta,
+    log_counts,
+    create_schema_if_not_exists
+)
+
+print("=" * 60)
+print("INICIANDO CAPA GOLD")
+print("=" * 60)
+
+create_schema_if_not_exists(spark, CATALOG, SCHEMA_GOLD)
+
+df_movies = spark.read.table(TBL_SILVER_MOVIES)
+df_autos  = spark.read.table(TBL_SILVER_AUTOS)
+
+# ══════════════════════════════════════
+# GOLD 1 — Analítica de Géneros (Movies)
+# ══════════════════════════════════════
+print("\n[GOLD] Generando analítica de géneros...")
+
+df_genre = (
+    df_movies
+    .groupBy("primary_genre")
+    .agg(
+        F.count("*")                         .alias("total_peliculas"),
+        F.round(F.avg("rating"), 2)          .alias("rating_promedio"),
+        F.max("rating")                      .alias("rating_maximo"),
+        F.min("rating")                      .alias("rating_minimo"),
+        F.round(F.avg("votes"), 0)           .alias("votos_promedio"),
+        F.sum("votes")                       .alias("total_votos"),
+        F.countDistinct("director")          .alias("directores_unicos"),
+    )
+    .filter(F.col("total_peliculas") >= 5)
+    .orderBy(F.desc("rating_promedio"))
+    .withColumn("_ingestion_date", F.current_timestamp())
+)
+
+write_delta(df_genre, TBL_GOLD_GENRE)
+log_counts(df_genre, "gold", TBL_GOLD_GENRE)
+
+# ══════════════════════════════════════
+# GOLD 2 — Analítica por Marca (Autos)
+# ══════════════════════════════════════
+print("\n[GOLD] Generando analítica por marca de autos...")
+
+df_brand = (
+    df_autos
+    .groupBy("make", "fuel_type")
+    .agg(
+        F.count("*")                          .alias("total_modelos"),
+        F.round(F.avg("price"), 2)            .alias("precio_promedio"),
+        F.min("price")                        .alias("precio_minimo"),
+        F.max("price")                        .alias("precio_maximo"),
+        F.round(F.avg("horsepower"), 1)       .alias("hp_promedio"),
+        F.round(F.avg("avg_mpg"), 1)          .alias("eficiencia_promedio_mpg"),
+        F.round(F.avg("engine_size"), 1)      .alias("motor_promedio_cc"),
+    )
+    .orderBy(F.desc("precio_promedio"))
+    .withColumn("_ingestion_date", F.current_timestamp())
+)
+
+write_delta(df_brand, TBL_GOLD_AUTOS_BRAND)
+log_counts(df_brand, "gold", TBL_GOLD_AUTOS_BRAND)
+
+# ══════════════════════════════════════
+# GOLD 3 — Resumen de Mercado Combinado
+# Relaciona segmento de precio de autos con
+# consumo cultural por género de película
+# (tabla de resumen ejecutivo multi-fuente)
+# ══════════════════════════════════════
+print("\n[GOLD] Generando resumen de mercado combinado...")
+
+df_autos_summary = (
+    df_autos
+    .groupBy("price_segment")
+    .agg(
+        F.count("*")                    .alias("total_autos"),
+        F.round(F.avg("price"), 2)      .alias("precio_promedio"),
+        F.round(F.avg("avg_mpg"), 1)    .alias("eficiencia_promedio"),
+    )
+    .withColumn("categoria", F.lit("Automóvil"))
+    .withColumnRenamed("price_segment", "segmento")
+)
+
+df_movies_summary = (
+    df_movies
+    .groupBy("rating_category")
+    .agg(
+        F.count("*")                    .alias("total_peliculas"),
+        F.round(F.avg("rating"), 2)     .alias("rating_promedio"),
+        F.round(F.avg("votes"), 0)      .alias("votos_promedio"),
+    )
+    .withColumn("categoria", F.lit("Película"))
+    .withColumnRenamed("rating_category", "segmento")
+)
+
+# Unión de resúmenes para tabla ejecutiva
+df_combined = (
+    df_autos_summary
+    .select("categoria", "segmento", "total_autos", "precio_promedio", "eficiencia_promedio")
+    .withColumn("total_items", F.col("total_autos"))
+    .drop("total_autos")
+    .unionByName(
+        df_movies_summary
+        .select("categoria", "segmento", "total_peliculas", "rating_promedio", "votos_promedio")
+        .withColumn("total_items", F.col("total_peliculas"))
+        .drop("total_peliculas"),
+        allowMissingColumns=True
+    )
+    .withColumn("_ingestion_date", F.current_timestamp())
+)
+
+write_delta(df_combined, TBL_GOLD_COMBINED)
+log_counts(df_combined, "gold", TBL_GOLD_COMBINED)
+
+print("\n[OK] Capa Gold completada exitosamente.")
+print("\nTablas disponibles para visualización:")
+print(f"  - {TBL_GOLD_GENRE}")
+print(f"  - {TBL_GOLD_AUTOS_BRAND}")
+print(f"  - {TBL_GOLD_COMBINED}")

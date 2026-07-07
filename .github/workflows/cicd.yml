@@ -1,0 +1,94 @@
+name: Databricks CI/CD — ETL Medallion
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ─────────────────────────────────────
+  # JOB 1: Validación (DEV)
+  # Se ejecuta en PRs y pushes a main
+  # ─────────────────────────────────────
+  validate:
+    name: Validar y desplegar en DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar Databricks CLI
+        run: pip install databricks-cli databricks-sdk
+
+      - name: Validar estructura del bundle
+        env:
+          DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+      - name: Desplegar notebooks en DEV
+        env:
+          DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle deploy \
+            --target dev \
+            --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
+            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
+            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+
+  # ─────────────────────────────────────
+  # JOB 2: Despliegue en PRODUCCIÓN
+  # Solo se ejecuta cuando hay push a main
+  # ─────────────────────────────────────
+  deploy_production:
+    name: Desplegar y ejecutar en PRODUCCIÓN
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar Databricks CLI
+        run: pip install databricks-cli databricks-sdk
+
+      - name: Desplegar notebooks en PRODUCCIÓN
+        env:
+          DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle deploy \
+            --target prod \
+            --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
+            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
+            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+
+      - name: Ejecutar pipeline en PRODUCCIÓN
+        env:
+          DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle run etl_pipeline \
+            --target prod \
+            --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
+            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
+            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+
+      - name: Confirmar ejecución exitosa
+        run: echo "Pipeline ETL ejecutado exitosamente en producción."
