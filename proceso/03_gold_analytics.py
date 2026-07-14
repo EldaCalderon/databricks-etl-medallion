@@ -1,3 +1,4 @@
+# Databricks notebook source
 # ═══════════════════════════════════════════════════════
 # CAPA GOLD — Agregaciones y métricas de negocio
 # Lee desde Silver y genera tablas listas para consumo
@@ -5,12 +6,16 @@
 # ═══════════════════════════════════════════════════════
 
 import sys
-sys.path.insert(0, "/Workspace/Shared/proyecto")
+
+_ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+_notebook_path = _ctx.notebookPath().get()
+_project_root = "/Workspace" + "/".join(_notebook_path.split("/")[:-2])
+sys.path.insert(0, _project_root)
 
 from pyspark.sql import functions as F
 
 from config.settings import (
-    CATALOG, SCHEMA_GOLD,
+    SCHEMA_GOLD,
     TBL_SILVER_MOVIES, TBL_SILVER_AUTOS,
     TBL_GOLD_GENRE, TBL_GOLD_AUTOS_BRAND, TBL_GOLD_COMBINED
 )
@@ -24,7 +29,7 @@ print("=" * 60)
 print("INICIANDO CAPA GOLD")
 print("=" * 60)
 
-create_schema_if_not_exists(spark, CATALOG, SCHEMA_GOLD)
+create_schema_if_not_exists(spark, None, SCHEMA_GOLD)
 
 df_movies = spark.read.table(TBL_SILVER_MOVIES)
 df_autos  = spark.read.table(TBL_SILVER_AUTOS)

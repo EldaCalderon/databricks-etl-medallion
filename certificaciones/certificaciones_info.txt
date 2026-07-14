@@ -1,0 +1,19 @@
+CERTIFICACIONES
+================
+
+Agregar en esta carpeta las capturas de pantalla (.png) de las certificaciones
+relevantes al proyecto:
+
+Ejemplos:
+- Microsoft Azure Fundamentals (AZ-900)
+- Microsoft Azure Data Engineer Associate (DP-203)
+- Databricks Certified Associate Developer for Apache Spark
+- Databricks Lakehouse Fundamentals
+
+Formato esperado:
+- [nombre_certificacion].png  → captura de pantalla del certificado
+- [nombre_certificacion].txt  → enlace al certificado verificable en línea
+
+Ejemplo:
+  az900_certificate.png
+  az900_link.txt → https://learn.microsoft.com/api/credentials/share/...

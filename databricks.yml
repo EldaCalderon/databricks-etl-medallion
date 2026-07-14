@@ -4,22 +4,20 @@ bundle:
 variables:
   cluster_id:
     description: "ID del cluster de producción (único cluster activo)"
+  databricks_user:
+    description: "Email del usuario de Databricks"
 
 targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: ${var.DATABRICKS_HOST}
     run_as:
-      user_name: ${var.DATABRICKS_USER}
+      user_name: ${var.databricks_user}
 
   prod:
     mode: production
-    workspace:
-      host: ${var.DATABRICKS_HOST}
     run_as:
-      user_name: ${var.DATABRICKS_USER}
+      user_name: ${var.databricks_user}
 
 resources:
   jobs:
@@ -59,4 +57,4 @@ resources:
 
       email_notifications:
         on_failure:
-          - ${var.DATABRICKS_USER}
+          - ${var.databricks_user}

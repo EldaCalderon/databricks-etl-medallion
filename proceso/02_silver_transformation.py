@@ -1,16 +1,21 @@
+# Databricks notebook source
 # ═══════════════════════════════════════════════════════
 # CAPA SILVER — Limpieza, validación y estandarización
 # Lee desde Bronze y aplica transformaciones de calidad
 # ═══════════════════════════════════════════════════════
 
 import sys
-sys.path.insert(0, "/Workspace/Shared/proyecto")
+
+_ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+_notebook_path = _ctx.notebookPath().get()
+_project_root = "/Workspace" + "/".join(_notebook_path.split("/")[:-2])
+sys.path.insert(0, _project_root)
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType
 
 from config.settings import (
-    CATALOG, SCHEMA_SILVER,
+    SCHEMA_SILVER,
     TBL_BRONZE_MOVIES, TBL_BRONZE_AUTOS,
     TBL_SILVER_MOVIES, TBL_SILVER_AUTOS
 )
@@ -27,7 +32,7 @@ print("=" * 60)
 print("INICIANDO CAPA SILVER")
 print("=" * 60)
 
-create_schema_if_not_exists(spark, CATALOG, SCHEMA_SILVER)
+create_schema_if_not_exists(spark, None, SCHEMA_SILVER)
 
 # ══════════════════════════════════════
 # MOVIES — Transformaciones Silver

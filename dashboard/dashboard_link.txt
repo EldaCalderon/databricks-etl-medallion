@@ -1,0 +1,25 @@
+DASHBOARD — ETL Medallion Pipeline
+====================================
+
+Workspace Databricks:
+https://adb-7405610893212127.7.azuredatabricks.net/
+
+Instrucciones para crear el dashboard en Databricks SQL:
+1. Ir a SQL Editor en Databricks
+2. Ejecutar las queries de queries_gold.sql
+3. Guardar cada resultado como visualización:
+   - Query 1 → Gráfico de barras: Top Directores por Rentabilidad
+   - Query 2 → Gráfico de pastel: Distribución por Categoría de Rendimiento
+   - Query 3 → Gráfico de barras: Marcas por Precio y Eficiencia
+   - Query 4 → Gráfico de barras agrupadas: Eficiencia por Tipo de Combustible
+   - Query 5 → Tabla: Resumen de Mercado Combinado
+4. Ir a Dashboards → New Dashboard → agregar las visualizaciones
+5. Publicar y copiar el enlace aquí
+
+Enlace al dashboard publicado:
+[PENDIENTE - Agregar enlace después de crear el dashboard en Databricks SQL]
+
+Capturas de pantalla del dashboard guardadas en esta carpeta:
+- dashboard_movies.png
+- dashboard_autos.png
+- dashboard_combined.png

@@ -1,0 +1,42 @@
+EVIDENCIAS — Pipeline ETL Medallion
+=====================================
+
+Agregar en esta carpeta las capturas de pantalla (.png) que evidencian
+el funcionamiento correcto del proyecto:
+
+──────────────────────────────────────────
+1. Ejecución del Workflow en Databricks
+──────────────────────────────────────────
+Archivo: workflow_exitoso.png
+Qué mostrar:
+  - Databricks → Workflows → etl_pipeline
+  - Estado: "Succeeded" (color verde)
+  - Las 3 tareas: bronze_ingestion, silver_transformation, gold_analytics
+
+──────────────────────────────────────────
+2. GitHub Actions — CI/CD exitoso
+──────────────────────────────────────────
+Archivo: github_actions_exitoso.png
+Qué mostrar:
+  - Repositorio GitHub → pestaña "Actions"
+  - Workflow run con checkmark verde
+  - Pasos: validate + deploy + run completados
+
+──────────────────────────────────────────
+3. Recursos aprovisionados en Azure
+──────────────────────────────────────────
+Archivo: azure_recursos.png
+Qué mostrar:
+  - Azure Portal → Resource Group
+  - Recursos visibles:
+    * Azure Databricks Workspace
+    * Storage Account (ADLS Gen2) sadatabricksetl26
+    * Contenedores: raw, bronze, silver, gold (opcional)
+
+──────────────────────────────────────────
+4. Tablas Gold en Databricks (opcional)
+──────────────────────────────────────────
+Archivo: tablas_gold.png
+Qué mostrar:
+  - Databricks → Data → gold
+  - Tablas: genre_analytics, auto_brand_analytics, market_summary

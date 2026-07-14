@@ -1,0 +1,46 @@
+DATASETS — Fuentes de datos del pipeline ETL Medallion
+========================================================
+
+Almacenamiento: Azure Data Lake Storage Gen2
+Storage Account: sadatabricksetl26
+Contenedor: raw
+
+Rutas en ADLS Gen2:
+  - Movies:      abfss://raw@sadatabricksetl26.dfs.core.windows.net/movies/
+  - Automobiles: abfss://raw@sadatabricksetl26.dfs.core.windows.net/automobiles/
+
+──────────────────────────────────────────
+DATASET 1: Movies (Películas)
+──────────────────────────────────────────
+Fuente:  Kaggle - IMDB Movies Dataset
+Formato: CSV
+Columnas principales:
+  - id           : Identificador único de la película
+  - director     : Director de la película
+  - top_billed   : Actor/actriz principal
+  - budget_usd   : Presupuesto en USD
+  - revenue_usd  : Recaudación en USD
+
+Columnas derivadas en Silver:
+  - profit_usd          : revenue_usd - budget_usd
+  - profit_margin_pct   : (profit_usd / budget_usd) * 100
+  - performance_category: Clasificación por rentabilidad
+
+──────────────────────────────────────────
+DATASET 2: Automobiles (Automóviles)
+──────────────────────────────────────────
+Fuente:  Kaggle - Automobile Dataset
+Formato: CSV (nulos representados con "?")
+Columnas principales:
+  - make         : Marca del vehículo
+  - fuel_type    : Tipo de combustible (gas, diesel)
+  - body_style   : Tipo de carrocería
+  - engine_size  : Tamaño del motor (cc)
+  - horsepower   : Potencia en HP
+  - city_mpg     : Rendimiento en ciudad (millas/galón)
+  - highway_mpg  : Rendimiento en carretera (millas/galón)
+  - price        : Precio en USD
+
+Columnas derivadas en Silver:
+  - avg_mpg      : Promedio de city_mpg y highway_mpg
+  - price_segment: Clasificación por rango de precio

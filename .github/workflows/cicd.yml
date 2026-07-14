@@ -21,13 +21,8 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Instalar Databricks CLI
-        run: pip install databricks-cli databricks-sdk
+      - name: Instalar Databricks CLI (nuevo)
+        uses: databricks/setup-cli@main
 
       - name: Validar estructura del bundle
         env:
@@ -43,8 +38,7 @@ jobs:
           databricks bundle deploy \
             --target dev \
             --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
-            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
-            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+            --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
 
   # ─────────────────────────────────────
   # JOB 2: Despliegue en PRODUCCIÓN
@@ -60,13 +54,8 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Instalar Databricks CLI
-        run: pip install databricks-cli databricks-sdk
+      - name: Instalar Databricks CLI (nuevo)
+        uses: databricks/setup-cli@main
 
       - name: Desplegar notebooks en PRODUCCIÓN
         env:
@@ -76,8 +65,7 @@ jobs:
           databricks bundle deploy \
             --target prod \
             --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
-            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
-            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+            --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
 
       - name: Ejecutar pipeline en PRODUCCIÓN
         env:
@@ -87,8 +75,7 @@ jobs:
           databricks bundle run etl_pipeline \
             --target prod \
             --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
-            --var="DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" \
-            --var="DATABRICKS_USER=${{ secrets.DATABRICKS_USER }}"
+            --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
 
       - name: Confirmar ejecución exitosa
         run: echo "Pipeline ETL ejecutado exitosamente en producción."

@@ -1,3 +1,4 @@
+# Databricks notebook source
 # ═══════════════════════════════════════════════════════
 # CAPA BRONZE — Ingesta desde ADLS Gen2
 # Lee los CSVs crudos y los persiste como tablas Delta
@@ -5,11 +6,15 @@
 # ═══════════════════════════════════════════════════════
 
 import sys
-sys.path.insert(0, "/Workspace/Shared/proyecto")
+
+_ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+_notebook_path = _ctx.notebookPath().get()
+_project_root = "/Workspace" + "/".join(_notebook_path.split("/")[:-2])
+sys.path.insert(0, _project_root)
 
 from config.settings import (
     STORAGE_ACCOUNT, RAW_MOVIES_PATH, RAW_AUTOS_PATH,
-    CATALOG, SCHEMA_BRONZE,
+    SCHEMA_BRONZE,
     TBL_BRONZE_MOVIES, TBL_BRONZE_AUTOS
 )
 from src.utils.helpers import (
@@ -29,7 +34,7 @@ print("=" * 60)
 configure_managed_identity(spark, STORAGE_ACCOUNT)
 
 # ── 2. Crear schemas si no existen ──────────────────────
-create_schema_if_not_exists(spark, CATALOG, SCHEMA_BRONZE)
+create_schema_if_not_exists(spark, None, SCHEMA_BRONZE)
 
 # ── 3. Ingestar Movies ──────────────────────────────────
 print("\n[MOVIES] Leyendo desde ADLS Gen2...")

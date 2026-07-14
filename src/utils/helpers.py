@@ -60,6 +60,6 @@ def write_delta(df: DataFrame, table_name: str, mode: str = "overwrite") -> None
 
 
 def create_schema_if_not_exists(spark, catalog: str, schema: str) -> None:
-    """Crea el schema (base de datos) si no existe en Unity Catalog."""
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
-    print(f"[SCHEMA] {catalog}.{schema} verificado/creado")
+    """Crea la base de datos si no existe en Hive Metastore."""
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema}")
+    print(f"[SCHEMA] {schema} verificado/creado")
