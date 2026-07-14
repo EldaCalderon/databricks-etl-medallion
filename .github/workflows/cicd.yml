@@ -28,7 +28,10 @@ jobs:
         env:
           DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle validate
+        run: |
+          databricks bundle validate \
+            --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
+            --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
 
       - name: Desplegar notebooks en DEV
         env:
