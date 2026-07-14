@@ -18,7 +18,6 @@ from config.settings import (
     TBL_BRONZE_MOVIES, TBL_BRONZE_AUTOS
 )
 from src.utils.helpers import (
-    configure_managed_identity,
     add_ingestion_metadata,
     drop_full_duplicates,
     write_delta,
@@ -30,10 +29,7 @@ print("=" * 60)
 print("INICIANDO CAPA BRONZE")
 print("=" * 60)
 
-# ── 1. Managed Identity ──────────────────────────────────
-configure_managed_identity(spark, STORAGE_ACCOUNT)
-
-# ── 2. Crear schemas si no existen ──────────────────────
+# ── 1. Crear schemas si no existen ──────────────────────
 create_schema_if_not_exists(spark, None, SCHEMA_BRONZE)
 
 # ── 3. Ingestar Movies ──────────────────────────────────
