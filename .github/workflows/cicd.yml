@@ -10,18 +10,17 @@ on:
 
 jobs:
   # ─────────────────────────────────────
-  # JOB 1: Validación (DEV)
-  # Se ejecuta en PRs y pushes a main
+  # JOB 1: Validación del bundle
   # ─────────────────────────────────────
   validate:
-    name: Validar y desplegar en DEV
+    name: Validar bundle
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Instalar Databricks CLI (nuevo)
+      - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
 
       - name: Validar estructura del bundle
@@ -32,6 +31,22 @@ jobs:
           databricks bundle validate \
             --var="cluster_id=${{ secrets.DATABRICKS_CLUSTER_ID }}" \
             --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
+
+  # ─────────────────────────────────────
+  # JOB 2: Despliegue en DEV
+  # Solo corre si validate pasó
+  # ─────────────────────────────────────
+  deploy_dev:
+    name: Desplegar en DEV
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
 
       - name: Desplegar notebooks en DEV
         env:
@@ -44,20 +59,20 @@ jobs:
             --var="databricks_user=${{ secrets.DATABRICKS_USER }}"
 
   # ─────────────────────────────────────
-  # JOB 2: Despliegue en PRODUCCIÓN
-  # Solo se ejecuta cuando hay push a main
+  # JOB 3: Despliegue y ejecución en PRODUCCIÓN
+  # Solo corre si deploy_dev pasó y es push a main
   # ─────────────────────────────────────
   deploy_production:
     name: Desplegar y ejecutar en PRODUCCIÓN
     runs-on: ubuntu-latest
-    needs: validate
+    needs: deploy_dev
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Instalar Databricks CLI (nuevo)
+      - name: Instalar Databricks CLI
         uses: databricks/setup-cli@main
 
       - name: Desplegar notebooks en PRODUCCIÓN
