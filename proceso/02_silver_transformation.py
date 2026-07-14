@@ -36,6 +36,7 @@ create_schema_if_not_exists(spark, None, SCHEMA_SILVER)
 
 # ══════════════════════════════════════
 # MOVIES — Transformaciones Silver
+# Columnas: id, director, top_billed, budget_usd, revenue_usd
 # ══════════════════════════════════════
 print("\n[MOVIES] Procesando capa Silver...")
 
@@ -44,28 +45,31 @@ log_counts(df_movies, "bronze_read", "movies")
 
 df_movies_silver = (
     df_movies
-    # Estandarizar nombres de columnas a snake_case
     .toDF(*[c.lower().replace(" ", "_").replace("-", "_") for c in df_movies.columns])
-    # Castear tipos
-    .transform(lambda df: cast_column_safe(df, "rating", DoubleType()))
-    .transform(lambda df: cast_column_safe(df, "votes", IntegerType()))
-    .transform(lambda df: cast_column_safe(df, "year", IntegerType()))
-    # Limpiar nulos en campos clave
-    .transform(lambda df: fill_nulls_with_unknown(df, ["genre", "director", "language", "country"]))
-    # Filtrar registros sin título o rating
-    .filter(F.col("title").isNotNull())
-    .filter(F.col("rating").isNotNull() & (F.col("rating") > 0))
-    # Estandarizar género: tomar solo el primer género listado
-    .withColumn("primary_genre", F.trim(F.split(F.col("genre"), ",")[0]))
-    # Clasificar por rating
+    # Castear columnas numéricas
+    .transform(lambda df: cast_column_safe(df, "budget_usd",  DoubleType()))
+    .transform(lambda df: cast_column_safe(df, "revenue_usd", DoubleType()))
+    # Limpiar nulos en texto
+    .transform(lambda df: fill_nulls_with_unknown(df, ["director", "top_billed"]))
+    # Filtrar registros sin datos financieros válidos
+    .filter(F.col("budget_usd").isNotNull()  & (F.col("budget_usd")  > 0))
+    .filter(F.col("revenue_usd").isNotNull() & (F.col("revenue_usd") > 0))
+    # Estandarizar director
+    .withColumn("director", F.initcap(F.trim(F.col("director"))))
+    # Columnas derivadas financieras
+    .withColumn("profit_usd",
+        F.col("revenue_usd") - F.col("budget_usd"))
+    .withColumn("profit_margin_pct",
+        F.round((F.col("profit_usd") / F.col("budget_usd")) * 100, 2))
+    .withColumn("roi",
+        F.round(F.col("revenue_usd") / F.col("budget_usd"), 4))
+    # Clasificar por rentabilidad
     .withColumn(
-        "rating_category",
-        F.when(F.col("rating") >= 8.0, "Excelente")
-         .when(F.col("rating") >= 6.5, "Buena")
-         .when(F.col("rating") >= 5.0, "Regular")
-         .otherwise("Baja")
+        "performance_category",
+        F.when(F.col("profit_usd") > 100_000_000, "Blockbuster")
+         .when(F.col("profit_usd") > 0,           "Rentable")
+         .otherwise("Pérdida")
     )
-    # Eliminar columnas de auditoría bronze para re-agregar limpias
     .drop("_source", "_ingestion_date", "_year", "_month")
     .withColumn("_source",         F.lit("silver_movies"))
     .withColumn("_ingestion_date", F.current_timestamp())
@@ -86,30 +90,22 @@ log_counts(df_autos, "bronze_read", "automobiles")
 df_autos_silver = (
     df_autos
     .toDF(*[c.lower().replace(" ", "_").replace("-", "_") for c in df_autos.columns])
-    # Castear columnas numéricas
-    .transform(lambda df: cast_column_safe(df, "price",            DoubleType()))
-    .transform(lambda df: cast_column_safe(df, "horsepower",       DoubleType()))
-    .transform(lambda df: cast_column_safe(df, "city_mpg",         IntegerType()))
-    .transform(lambda df: cast_column_safe(df, "highway_mpg",      IntegerType()))
-    .transform(lambda df: cast_column_safe(df, "engine_size",      IntegerType()))
-    .transform(lambda df: cast_column_safe(df, "curb_weight",      IntegerType()))
-    # Limpiar nulos en campos clave
+    .transform(lambda df: cast_column_safe(df, "price",       DoubleType()))
+    .transform(lambda df: cast_column_safe(df, "horsepower",  DoubleType()))
+    .transform(lambda df: cast_column_safe(df, "city_mpg",    IntegerType()))
+    .transform(lambda df: cast_column_safe(df, "highway_mpg", IntegerType()))
+    .transform(lambda df: cast_column_safe(df, "engine_size", IntegerType()))
+    .transform(lambda df: cast_column_safe(df, "curb_weight", IntegerType()))
     .transform(lambda df: fill_nulls_with_unknown(df, ["make", "fuel_type", "body_style", "drive_wheels"]))
-    # Filtrar registros sin precio válido
     .filter(F.col("price").isNotNull() & (F.col("price") > 0))
-    # Estandarizar make a mayúsculas
     .withColumn("make", F.upper(F.trim(F.col("make"))))
-    # Promedio MPG
-    .withColumn(
-        "avg_mpg",
-        F.round((F.col("city_mpg") + F.col("highway_mpg")) / 2, 1)
-    )
-    # Clasificar por precio
+    .withColumn("avg_mpg",
+        F.round((F.col("city_mpg") + F.col("highway_mpg")) / 2, 1))
     .withColumn(
         "price_segment",
-        F.when(F.col("price") < 10000,  "Económico")
-         .when(F.col("price") < 20000,  "Medio")
-         .when(F.col("price") < 35000,  "Premium")
+        F.when(F.col("price") < 10000, "Económico")
+         .when(F.col("price") < 20000, "Medio")
+         .when(F.col("price") < 35000, "Premium")
          .otherwise("Lujo")
     )
     .drop("_source", "_ingestion_date", "_year", "_month")

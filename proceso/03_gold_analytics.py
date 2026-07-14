@@ -35,29 +35,35 @@ df_movies = spark.read.table(TBL_SILVER_MOVIES)
 df_autos  = spark.read.table(TBL_SILVER_AUTOS)
 
 # ══════════════════════════════════════
-# GOLD 1 — Analítica de Géneros (Movies)
+# GOLD 1 — Analítica de Directores (Movies)
+# Columnas: director, budget_usd, revenue_usd, profit_usd
 # ══════════════════════════════════════
-print("\n[GOLD] Generando analítica de géneros...")
+print("\n[GOLD] Generando analítica de directores...")
 
-df_genre = (
+df_director = (
     df_movies
-    .groupBy("primary_genre")
+    .groupBy("director")
     .agg(
-        F.count("*")                         .alias("total_peliculas"),
-        F.round(F.avg("rating"), 2)          .alias("rating_promedio"),
-        F.max("rating")                      .alias("rating_maximo"),
-        F.min("rating")                      .alias("rating_minimo"),
-        F.round(F.avg("votes"), 0)           .alias("votos_promedio"),
-        F.sum("votes")                       .alias("total_votos"),
-        F.countDistinct("director")          .alias("directores_unicos"),
+        F.count("*")                                    .alias("total_peliculas"),
+        F.round(F.avg("budget_usd"),        2)          .alias("presupuesto_promedio_usd"),
+        F.round(F.avg("revenue_usd"),       2)          .alias("recaudacion_promedio_usd"),
+        F.round(F.avg("profit_usd"),        2)          .alias("ganancia_promedio_usd"),
+        F.round(F.avg("profit_margin_pct"), 1)          .alias("margen_promedio_pct"),
+        F.round(F.avg("roi"),               4)          .alias("roi_promedio"),
+        F.max("profit_usd")                             .alias("mejor_pelicula_profit_usd"),
     )
-    .filter(F.col("total_peliculas") >= 5)
-    .orderBy(F.desc("rating_promedio"))
+    .withColumn(
+        "categoria_rendimiento",
+        F.when(F.col("ganancia_promedio_usd") > 50_000_000, "Exitoso")
+         .when(F.col("ganancia_promedio_usd") > 0,          "Rentable")
+         .otherwise("Deficitario")
+    )
+    .orderBy(F.desc("ganancia_promedio_usd"))
     .withColumn("_ingestion_date", F.current_timestamp())
 )
 
-write_delta(df_genre, TBL_GOLD_GENRE)
-log_counts(df_genre, "gold", TBL_GOLD_GENRE)
+write_delta(df_director, TBL_GOLD_GENRE)
+log_counts(df_director, "gold", TBL_GOLD_GENRE)
 
 # ══════════════════════════════════════
 # GOLD 2 — Analítica por Marca (Autos)
@@ -69,12 +75,12 @@ df_brand = (
     .groupBy("make", "fuel_type")
     .agg(
         F.count("*")                          .alias("total_modelos"),
-        F.round(F.avg("price"), 2)            .alias("precio_promedio"),
+        F.round(F.avg("price"),         2)    .alias("precio_promedio"),
         F.min("price")                        .alias("precio_minimo"),
         F.max("price")                        .alias("precio_maximo"),
-        F.round(F.avg("horsepower"), 1)       .alias("hp_promedio"),
-        F.round(F.avg("avg_mpg"), 1)          .alias("eficiencia_promedio_mpg"),
-        F.round(F.avg("engine_size"), 1)      .alias("motor_promedio_cc"),
+        F.round(F.avg("horsepower"),    1)    .alias("hp_promedio"),
+        F.round(F.avg("avg_mpg"),       1)    .alias("eficiencia_promedio_mpg"),
+        F.round(F.avg("engine_size"),   1)    .alias("motor_promedio_cc"),
     )
     .orderBy(F.desc("precio_promedio"))
     .withColumn("_ingestion_date", F.current_timestamp())
@@ -85,9 +91,7 @@ log_counts(df_brand, "gold", TBL_GOLD_AUTOS_BRAND)
 
 # ══════════════════════════════════════
 # GOLD 3 — Resumen de Mercado Combinado
-# Relaciona segmento de precio de autos con
-# consumo cultural por género de película
-# (tabla de resumen ejecutivo multi-fuente)
+# Movies por performance_category + Autos por price_segment
 # ══════════════════════════════════════
 print("\n[GOLD] Generando resumen de mercado combinado...")
 
@@ -95,39 +99,31 @@ df_autos_summary = (
     df_autos
     .groupBy("price_segment")
     .agg(
-        F.count("*")                    .alias("total_autos"),
-        F.round(F.avg("price"), 2)      .alias("precio_promedio"),
+        F.count("*")                    .alias("total_items"),
+        F.round(F.avg("price"),   2)    .alias("precio_promedio"),
         F.round(F.avg("avg_mpg"), 1)    .alias("eficiencia_promedio"),
     )
-    .withColumn("categoria", F.lit("Automóvil"))
+    .withColumn("categoria",    F.lit("Automóvil"))
     .withColumnRenamed("price_segment", "segmento")
+    .select("categoria", "segmento", "total_items", "precio_promedio", "eficiencia_promedio")
 )
 
 df_movies_summary = (
     df_movies
-    .groupBy("rating_category")
+    .groupBy("performance_category")
     .agg(
-        F.count("*")                    .alias("total_peliculas"),
-        F.round(F.avg("rating"), 2)     .alias("rating_promedio"),
-        F.round(F.avg("votes"), 0)      .alias("votos_promedio"),
+        F.count("*")                               .alias("total_items"),
+        F.round(F.avg("profit_usd"),         2)    .alias("ganancia_promedio_usd"),
+        F.round(F.avg("profit_margin_pct"),  1)    .alias("margen_promedio_pct"),
     )
     .withColumn("categoria", F.lit("Película"))
-    .withColumnRenamed("rating_category", "segmento")
+    .withColumnRenamed("performance_category", "segmento")
+    .select("categoria", "segmento", "total_items", "ganancia_promedio_usd", "margen_promedio_pct")
 )
 
-# Unión de resúmenes para tabla ejecutiva
 df_combined = (
     df_autos_summary
-    .select("categoria", "segmento", "total_autos", "precio_promedio", "eficiencia_promedio")
-    .withColumn("total_items", F.col("total_autos"))
-    .drop("total_autos")
-    .unionByName(
-        df_movies_summary
-        .select("categoria", "segmento", "total_peliculas", "rating_promedio", "votos_promedio")
-        .withColumn("total_items", F.col("total_peliculas"))
-        .drop("total_peliculas"),
-        allowMissingColumns=True
-    )
+    .unionByName(df_movies_summary, allowMissingColumns=True)
     .withColumn("_ingestion_date", F.current_timestamp())
 )
 
