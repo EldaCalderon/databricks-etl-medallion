@@ -51,6 +51,15 @@ resources:
             source: WORKSPACE
           existing_cluster_id: ${var.cluster_id}
 
+        - task_key: dashboard
+          description: "Visualización de tablas Gold con gráficos matplotlib"
+          depends_on:
+            - task_key: gold_analytics
+          notebook_task:
+            notebook_path: ./proceso/05_dashboard.py
+            source: WORKSPACE
+          existing_cluster_id: ${var.cluster_id}
+
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"
         timezone_id: "America/Guatemala"
